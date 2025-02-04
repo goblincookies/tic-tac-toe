@@ -6,6 +6,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Work+Sans:ital,wght@0,100..900;1,100..900&display=swap" rel="stylesheet">
+    <script src="ttt.js" defer></script>
     <link rel="stylesheet" href="style.css">
     <title>Tic Tac Toe</title>
 </head>
@@ -27,16 +28,16 @@
                 </div>
             </div>
             <div class="status">
-                <div class="turn active"></div>
-                <div class="base-text center">You Win!</div>
-                <div class="turn"></div>
+                <div class="turn active" id="turn-cross"></div>
+                <div class="base-text center" id="status-text">You Win!</div>
+                <div class="turn" id="turn-circle"></div>
             </div>
             <div class="button-row">
                 <button class="button-text pink center hidden" id="next-game"> Next Game</button>
             </div>
         </div>
         <div class="lower">
-            <div class="board">
+            <div class="board" id="board">
                 <div class="cell shadow non"><img src="images/circle.svg" alt="" class="circle non"></div>
                 <div class="cell shadow non"><img src="images/cross.svg" alt="" class="cross non"></div>
                 <div class="cell shadow non"></div>

@@ -177,6 +177,7 @@ button {
 }
 .shadow:hover {
     cursor: pointer;
+    border: 1px solid #fff;
     filter: drop-shadow(1px 1px 16px #b2b2b2);
 }
 .reset {
