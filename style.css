@@ -175,10 +175,22 @@ button {
 .cell:nth-child(9) {
     border-bottom-right-radius: 1rem;
 }
+.hidden {
+    visibility:hidden;
+}
 .shadow:hover {
+    .hidden {
+        visibility: visible;
+    }
+
     cursor: pointer;
     border: 1px solid #fff;
     filter: drop-shadow(1px 1px 16px #b2b2b2);
+    
+    
+}
+.highlight-cross:hover {
+    background-color: #0db4f6;
 }
 .reset {
     width: 100%;
@@ -190,7 +202,9 @@ button {
 .cross {
     width: 7.5rem;
 }
-
+.winner {
+    background-color: #f92f78;
+}
 .non {
     user-drag: none;
     -webkit-user-drag: none;
