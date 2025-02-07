@@ -13,16 +13,17 @@ const hoverFile = [
 ];
 
 const getArt = function(  ){
-    
 
 };
 
-let playingGame = true;
+const dialog = document.querySelector("#dialog");
 
 const theGame = ( function() {
     let game=new Array(9);
     let winningUser = -1;
     let winningCells = [];
+    let score = [0,0];
+
     game.fill(-1);
 
     const clamp = function (val) {
@@ -34,10 +35,17 @@ const theGame = ( function() {
         if (a==b && a==c) {return true;}
         return false;
     }
+    const addPoint = function(user) {
+        score[user] += 1;
+    };
+    const getScore = function(user) {
+        return score[user];
+    }
     // reset game
     const resetGame = function() {
+        winningCells = [];
         game.fill(-1);
-    }
+    };
     // is valid cell
     const isValid  = function (slot) {
         slot = clamp(slot);
@@ -93,37 +101,32 @@ const theGame = ( function() {
     const getWinner = () => winningUser;
     const getWinningCells = () => winningCells;
 
-    return {isValid, addToCell, hasWinner, getWinner, getWinningCells, resetGame, getValidCells};
+    return {isValid, addToCell, hasWinner, getWinner, getWinningCells, resetGame, getValidCells, addPoint, getScore};
 })();
 
 const compAction = function() {
-    activeUser.switchUser(user.CROSS);
-
+    activeUser.switchUser(activeUser.getComp());
     let validCells = theGame.getValidCells();
-    console.log("validCells: ",  validCells);
+
     if(validCells.length>0){
         let randomID = validCells[Math.floor(Math.random()*validCells.length)];
-        theGame.addToCell(user.CIRCLE, randomID);
-        boardVisuals.setCell(user.CIRCLE, randomID);
+        theGame.addToCell(activeUser.getComp(), randomID);
+        boardVisuals.setCell(activeUser.getComp(), randomID);
         const cell = document.getElementById(randomID.toString());
-        console.log(cell);
-        console.log("computer took action");
-    
+        // console.log(cell.id);
+        console.log("computer took action: ", cell.id);
+
         if (theGame.hasWinner()) {
-            console.log("winner!!");
+            setStatus("Comp Wins!");
             boardVisuals.highlightWinner( theGame.getWinningCells() );
+            theGame.addPoint(activeUser.getComp());
+            boardVisuals.addPoint(activeUser.getComp(), theGame.getScore(activeUser.getComp()));
+            boardVisuals.nextGame();
         };
+        activeUser.switchUser( activeUser.getPlayer());
+    } else {
+        setStatus("Tie!");
     };
-
-    // let randomID = Math.floor(Math.random()*9);
-    // while( !theGame.isValid(randomID)) {
-        // console.log(randomID);
-        // randomID = Math.floor(Math.random()*9);
-    // };
-
-    // console.log(randomID);
-
-
 };
 
 const setStatus = (function() {
@@ -132,18 +135,58 @@ const setStatus = (function() {
 })();
 
 const boardVisuals = ( function () {
-    const setCell = function( user, id ) {
-        const cell = document.getElementById(id.toString());
-        cell.classList.remove("shadow", "highlight-cross");
-        const img = cell.querySelector("img");
-        img.src = artFile[user]; // shapeFile.CROSS;
-        img.classList.add("cross");
-        img.classList.remove("hidden");
+
+    const nextGame = function() {
+        document.querySelector("#next-game").classList.remove("hidden");
     };
-    const setHover = function( user ) {
+    const addPoint = function( player, score ) {
+        console.log("adding points for :", player, score, user.CROSS);
+        if (player == user.CROSS) {
+            console.log("chose cross for points");
+            document.querySelector("#score-cross").textContent = score;
+        } else {
+            console.log("chose circle for points");
+
+            document.querySelector("#score-circle").textContent = score;
+
+        }
+    };
+    const resetGame = function () {
+        const highlight = ["highlight-cross","highlight-circle"];
         for (const cell of board.children) {
             if(theGame.isValid( cell.id )) {
-                cell.querySelector("img").src = hoverFile[user];
+                cell.classList.add("cell","shadow", "non");
+                cell.classList.remove("winner");
+
+                // cell.querySelector("img").src = hoverFile[player];
+                cell.querySelector("img").classList.remove("winner");
+                cell.querySelector("img").classList.add("hidden");
+
+            };
+        };
+    };
+    const setCell = function( player, id ) {
+        const cell = document.getElementById(id.toString());
+        cell.classList.remove("shadow", "highlight-cross", "highlight-circle");
+        const img = cell.querySelector("img");
+
+        img.src = artFile[player]; // shapeFile.CROSS;
+        
+        if (player == user.CROSS) {
+            img.classList.add("cross");
+        } else {
+            img.classList.add("circle");
+        }
+        img.classList.remove("hidden");
+    };
+
+    const setHover = function( player ) {
+        const highlight = ["highlight-cross","highlight-circle"];
+        for (const cell of board.children) {
+            if(theGame.isValid( cell.id )) {
+                cell.classList.remove(highlight[1-player]);
+                cell.classList.add(highlight[player]);
+                cell.querySelector("img").src = hoverFile[player];
             };
         };
     };
@@ -156,18 +199,26 @@ const boardVisuals = ( function () {
             cell.classList.add("winner");
         }
     };
-    return {setCell, setHover, highlightWinner };
+    return {setCell, setHover, highlightWinner, nextGame, addPoint, resetGame };
 })();
 
 const activeUser = ( function() {
     const turnCircle = document.querySelector("#turn-circle");
     const turnCross = document.querySelector("#turn-cross");
+    const nameCross = document.querySelector("#name-cross");
+    const nameCircle = document.querySelector("#name-circle");
+
     let activeUser = -1;
     let player = -1;
     let comp = -1;
+
     const setPlayer = function( shape ) {
         player = shape;
         comp = 1-shape;
+        nameCross.textContent = player==user.CROSS ? "You" : "Com";
+        nameCircle.textContent = player==user.CIRCLE ? "You" : "Com";
+        nameCross.classList.remove("hidden");
+        nameCircle.classList.remove("hidden");
     };
     const getPlayer = function() {
         return player;
@@ -184,9 +235,13 @@ const activeUser = ( function() {
         if (newUser == user.CROSS){
             turnCross.classList.add("active");
             turnCircle.classList.remove("active");
+            nameCross.classList.remove("idle");
+            nameCircle.classList.add("idle");
         } else {
             turnCircle.classList.add("active");
             turnCross.classList.remove("active");
+            nameCross.classList.add("idle");
+            nameCircle.classList.remove("idle");
         };
         activeUser = newUser;
     };
@@ -195,46 +250,109 @@ const activeUser = ( function() {
 })();
 
 
-function setupBoard() {
-    activeUser.setPlayer(user.CROSS);
+function setup() {
+    document.querySelector("#start-game").addEventListener("click", startGame);
+    document.querySelector("#select-cross").addEventListener("click", dialogChangeUser);
+    document.querySelector("#select-circle").addEventListener("click", dialogChangeUser);
+    document.querySelector("#next-game").addEventListener("click", setupNewGame);
+    dialog.showModal();
+};
+
+function dialogChangeUser( e ) {
+    const id_cross = "select-cross";
+    const id_circ = "select-circle";
+    const tag = "selected";
+
+    if (e.currentTarget.id == id_cross) {
+        e.currentTarget.classList.add(tag);
+        document.querySelector("#"+id_circ).classList.remove(tag);
+        document.querySelector("#dialog-cross").textContent = "You";
+        document.querySelector("#dialog-circle").textContent = "Com";
+    } else {
+        e.currentTarget.classList.add(tag);
+        document.querySelector("#"+id_cross).classList.remove(tag);
+        document.querySelector("#dialog-circle").textContent = "You";
+        document.querySelector("#dialog-cross").textContent = "Com";
+    };
+};
+
+function startGame() {
+    setStatus("Let's go!");
+
+    if (document.querySelector("#select-cross").classList.contains("selected")) {
+        activeUser.setPlayer(user.CROSS);
+    } else {
+        activeUser.setPlayer(user.CIRCLE);
+    }
+    
     activeUser.switchUser(user.CROSS);
     theGame.resetGame();
+    boardVisuals.resetGame();
+    boardVisuals.addPoint(activeUser.getPlayer(), theGame.getScore(activeUser.getPlayer()));
+    boardVisuals.addPoint(activeUser.getComp(), theGame.getScore(activeUser.getComp()));
     
     const board = document.querySelector("#board");
     let n = 0
+
     for (const cell of board.children) {
-        console.log(cell);
-        cell.classList.add("cell","shadow", "non", "highlight-cross");
+        // console.log(cell);
         cell.id = n;
         cell.addEventListener("click", selectCell);
         n++;
     };
-    boardVisuals.setHover(activeUser.getActive());
+
+    boardVisuals.setHover(activeUser.getPlayer());
+
+    if (activeUser.getActive() != activeUser.getPlayer()) {
+        setTimeout(function (){
+            // Something you want delayed.
+            compAction();   
+          }, 600);
+    }
+    dialog.close();
+};
+
+function setupNewGame() {
+    setStatus("New Game");
+    activeUser.switchUser(user.CROSS);
+    theGame.resetGame();
+    boardVisuals.resetGame();
+    boardVisuals.setHover(activeUser.getPlayer());
+
+    if (activeUser.getActive() != activeUser.getPlayer()) {
+        setTimeout(function (){
+            compAction();   
+          }, 600);
+    };
 };
 
 function selectCell(e) {
 
     if(activeUser.getActive() == activeUser.getPlayer()) {
 
-        let target = e.target;
-        while(target.id == "") {
-            target = target.parentNode;
-        };
+        let target = e.currentTarget;
+        // while(target.id == "") {
+        //     target = target.parentNode;
+        // };
     
         if( theGame.isValid(target.id) ) {
             console.log("success!");
             
             theGame.addToCell(activeUser.getActive(), target.id );
             boardVisuals.setCell(activeUser.getActive(), target.id);
-            activeUser.switchUser(user.CIRCLE);
 
             console.log("played, checking winner...")
 
             if (theGame.hasWinner()) {
-                console.log("winner!!");
                 boardVisuals.highlightWinner( theGame.getWinningCells() );
+                theGame.addPoint(activeUser.getPlayer());
+                setStatus("You Win!");
+                boardVisuals.addPoint(activeUser.getPlayer(), theGame.getScore(activeUser.getPlayer()));
+                boardVisuals.nextGame();
             } else {
                 console.log("no winner!");
+                activeUser.switchUser(activeUser.getComp());
+
                 setTimeout(function (){
                     // Something you want delayed.
                     compAction();   
@@ -245,21 +363,4 @@ function selectCell(e) {
     };
 };
 
-setupBoard();
-
-// setStatus("Hello");
-// setStatus("O Turn");
-// setActiveUser(user.CIRCLE);
-// console.log(theGame.isValid(0));
-// theGame.addToCell(user.CIRCLE, 0);
-// theGame.addToCell(user.CIRCLE, 1);
-// theGame.addToCell(user.CIRCLE, 2);
-
-// console.log(theGame.isValid(0));
-// console.log(theGame.hasWinner());
-// console.log( theGame.getWinner() == 0 ? "CROSS" : "CIRCLE"  );
-// console.log(theGame.getWinningCells());
-
-
-// console.log(theGame.isValid(5));
-
+setup();

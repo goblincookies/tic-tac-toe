@@ -14,13 +14,13 @@
     <div class="game">
         <div class="upper">
             <div class="names">
-                <h3 class="base-text"> You</h3>
-                <h3 class="base-text idle">Com</h3>
+                <h3 class="base-text hidden" id="name-cross">You</h3>
+                <h3 class="base-text idle hidden" id="name-circle">Com</h3>
             </div>
             <div class="score-bar">
                 <div class="scores">
-                    <div class="base-text center">14</div>
-                    <div class="base-text center">1</div>
+                    <div class="base-text center" id="score-cross"></div>
+                    <div class="base-text center"id="score-circle"></div>
                 </div>
                 <div class="avatar-bar">
                     <img src="images/cross.png" alt="" class="non">
@@ -28,18 +28,16 @@
                 </div>
             </div>
             <div class="status">
-                <div class="turn active" id="turn-cross"></div>
-                <div class="base-text center" id="status-text">You Win!</div>
+                <div class="turn" id="turn-cross"></div>
+                <div class="base-text center" id="status-text"></div>
                 <div class="turn" id="turn-circle"></div>
             </div>
             <div class="button-row">
-                <button class="button-text pink center hidden" id="next-game"> Next Game</button>
+                <button class="button-text pink hidden" id="next-game"> Next Game</button>
             </div>
         </div>
         <div class="lower">
             <div class="board" id="board">
-                <!-- <img src="images/circle.svg" alt="" class="circle non"> -->
-                <!-- <img src="images/cross.svg" alt="" class="cross non"> -->
                 <div class="cell shadow non highlight-cross">
                     <img src="images/cross-hover.svg" alt="" class="cross non hidden">
                 </div>
@@ -69,9 +67,33 @@
                 </div>
             </div>
             <div class="button-row">
-                <button class="button-text white center" id="reset">reset game</button>
+                <button class="button-text white" id="reset">Reset Game</button>
             </div>
         </div>
     </div>
+    <dialog id="dialog">
+        <div class="black">
+            <div class="inputPage">
+                <div class="base-text center">Select Your Piece</div>
+                <div class="options">
+                    <div class="option selected" id="select-cross">
+                        <div class="selection">
+                            <img src="images/cross.png" alt="" class="non">
+                            <div class="base-text center" id="dialog-cross">You</div>
+                        </div>
+                    </div>
+                    <div class="option" id="select-circle">
+                        <div class="selection">
+                            <img src="images/circle.png" alt="" class="non">
+                            <div class="base-text center" id="dialog-circle">Com</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="button-row">
+                    <button class="button-text pink center" id="start-game"> Start Game</button>
+                </div>
+            </div>
+        </div>
+    </dialog>
 </body>
 </html>
