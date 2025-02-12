@@ -269,6 +269,9 @@ const boardVisuals = ( function () {
     const nextGame = function() {
         document.querySelector("#next-game").classList.remove("hidden");
     };
+    const hideNextGame = function() {
+        document.querySelector("#next-game").classList.add("hidden");
+    };
 
     const addPoint = function( player, score ) {
         console.log("adding points for :", player, score, user.CROSS);
@@ -349,7 +352,7 @@ const boardVisuals = ( function () {
         //     cell.classList.add("winner");
         // }
     };
-    return {setCell, setHover, highlightWinner, nextGame, addPoint, resetGame };
+    return {setCell, setHover, highlightWinner, nextGame, addPoint, resetGame, hideNextGame };
 })();
 
 const activeUser = ( function() {
@@ -481,6 +484,7 @@ function setupNewGame() {
     };
     theGameBoard.resetBoard();
     boardVisuals.resetGame();
+    boardVisuals.hideNextGame();
     boardVisuals.setHover(activeUser.getPlayer());
 
     if (activeUser.getActive() != activeUser.getPlayer()) {
