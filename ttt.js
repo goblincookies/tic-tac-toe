@@ -109,9 +109,6 @@ const theGameBoard = ( function() {
 
     const hasDraw = function () {
         return ((asBinary(board_All[user.BOTH]).toString().split("1").length - 1) >= 9) 
-
-        // return ( (asBinary(board_All[user.board]).toString().split("1").length - 1) >=9);
-
     };
 
     const getValidCells = function() {
@@ -130,6 +127,46 @@ const theGameBoard = ( function() {
         resetBoard, getValidCells, addPoint, getScore, resetScore };
 })();
 
+const turnManager = ( function () {
+
+    const endTurn = function (userID) {
+
+        if (theGameBoard.hasWinner()) {
+            boardVisuals.highlightWinner( theGameBoard.getWinningMasks() );
+            theGameBoard.addPoint(userID);
+            if(userID == activeUser.getPlayer()) {
+                setStatus("You Win!");
+            } else {
+                setStatus("Com Win!");
+            };
+
+            boardVisuals.addPoint(userID, theGameBoard.getScore(userID));
+            boardVisuals.nextGame();
+
+            activeUser.switchUser(user.BOTH);
+    
+        } else if(theGameBoard.hasDraw()) {
+            setStatus("Draw!");
+            activeUser.switchUser(user.BOTH);
+            boardVisuals.nextGame();
+        }else {
+            console.log("swithcing user", userID, 1-userID);
+            activeUser.switchUser(1-userID);
+            
+            if(activeUser.getActive() == activeUser.getPlayer()) {
+                setStatus("Your Turn");
+            } else {
+                setStatus("Com Turn");
+                setTimeout(function (){
+                // Something you want delayed.
+                compAction();   
+              }, 600);
+            };            
+        };
+    };
+    return {endTurn}
+})();
+
 function asBinary(val) {
     return val.toString(2).padStart(bitLength, "0")
 };
@@ -144,20 +181,16 @@ const compAction = function() {
     let filteredPieces;
     let board_Temp;
     let noBlockWin = true;
+
     // quick win check
     // block win
-
     for ( let userID = 0; userID < 2; userID++) {
         // board X, board O
-
         for (const win of winMasks){
 
             board_Temp = (board_All[userID] & win);
-            console.log(userID, asBinary(board_Temp));
             if ((asBinary(board_Temp).toString().split("1").length - 1) > 1) {
-                // The will win!!
-                // PLAY HERE?
-                // WHERE IS HERE!!?
+
                 if ((board_All[user.BOTH] & win) == (board_All[userID] & win)) {
                     if (userID==activeUser.getComp()) {
                         console.log("found Win!")
@@ -183,9 +216,7 @@ const compAction = function() {
         for ( let userID = 0; userID < 2; userID++) {
     
             for (let c = 0; c < 9; c ++) {
-                // const b = board_All[user.BOTH];
-                // const i = ids[c]
-                // // console.log(asBinary(b), asBinary(i), asBinary(b & i), asBinary(b | i) );
+
                 if ((board_All[user.BOTH] | ids[c] ) != board_All[user.BOTH]) {
                     // empty cell
                     console.log("space is open: ", c)
@@ -237,25 +268,8 @@ const compAction = function() {
 
         console.log("Comp played, checking winner...")
 
-        if (theGameBoard.hasWinner()) {
-            boardVisuals.highlightWinner( theGameBoard.getWinningMasks() );
-            theGameBoard.addPoint(activeUser.getComp());
-            setStatus("Comp Win!");
-            boardVisuals.addPoint(activeUser.getComp(), theGameBoard.getScore(activeUser.getComp()));
-            boardVisuals.nextGame();
-        } else if(theGameBoard.hasDraw()) {
-            setStatus("Draw!");
-            boardVisuals.nextGame();
-        } else {
-            console.log("no winner!");
-            activeUser.switchUser(activeUser.getPlayer());
-            setStatus("Your Turn");
-
-        };
-
+        turnManager.endTurn(activeUser.getComp());
     };
-
-    // for (let n =0; n < options.length; n++) {
 
 };
 
@@ -344,13 +358,6 @@ const boardVisuals = ( function () {
             cell.classList.remove("shadow", "highlight-cross");
             cell.classList.add("winner");
         };
-
-        // for(const cellID of winningCells) {
-        //     console.log(id)
-        //     const cell = document.getElementById(id.toString());
-        //     cell.classList.remove("shadow", "highlight-cross");
-        //     cell.classList.add("winner");
-        // }
     };
     return {setCell, setHover, highlightWinner, nextGame, addPoint, resetGame, hideNextGame };
 })();
@@ -383,20 +390,25 @@ const activeUser = ( function() {
         return activeUser;
     };
 
-    const switchUser = function( newUser ){
+    const switchUser = function( userID ){
         // return newUser;
-        if (newUser == user.CROSS){
+        if (userID == user.CROSS){
             turnCross.classList.add("active");
             turnCircle.classList.remove("active");
             nameCross.classList.remove("idle");
             nameCircle.classList.add("idle");
-        } else {
+        } else if (userID == user.CIRCLE){
             turnCircle.classList.add("active");
             turnCross.classList.remove("active");
             nameCross.classList.add("idle");
             nameCircle.classList.remove("idle");
+        } else {
+            turnCircle.classList.remove("active");
+            turnCross.classList.remove("active");
+            nameCross.classList.add("idle");
+            nameCircle.classList.add("idle");
         };
-        activeUser = newUser;
+        activeUser = userID;
     };
 
     return {switchUser, getActive, getPlayer, setPlayer, getComp}
@@ -473,7 +485,7 @@ function startGame() {
 
 function resetGame() {
     dialog.showModal();
-}
+};
 
 function setupNewGame() {
     activeUser.switchUser(user.CROSS);
@@ -495,44 +507,12 @@ function setupNewGame() {
 };
 
 function selectCell(e) {
-
     if(activeUser.getActive() == activeUser.getPlayer()) {
-
         let target = e.currentTarget;
-        // while(target.id == "") {
-        //     target = target.parentNode;
-        // };
-    
         if( theGameBoard.isValid(target.id) ) {
-            console.log("success!");
-            
             theGameBoard.addToCell(activeUser.getActive(), target.id );
             boardVisuals.setCell(activeUser.getActive(), target.id);
-
-            console.log("played, checking winner...")
-
-            if (theGameBoard.hasWinner()) {
-                boardVisuals.highlightWinner( theGameBoard.getWinningMasks() );
-                theGameBoard.addPoint(activeUser.getPlayer());
-                setStatus("You Win!");
-                boardVisuals.addPoint(activeUser.getPlayer(), theGameBoard.getScore(activeUser.getPlayer()));
-                boardVisuals.nextGame();
-                activeUser.switchUser(activeUser.getComp());
-
-            } else if(theGameBoard.hasDraw()) {
-                setStatus("Draw!");
-                boardVisuals.nextGame();
-            }else {
-                // console.log("no winner!");
-                activeUser.switchUser(activeUser.getComp());
-                setStatus("Comp Turn");
-
-                setTimeout(function (){
-                    // Something you want delayed.
-                    compAction();   
-                  }, 600);
-            };
-    
+            turnManager.endTurn(activeUser.getPlayer());
         };
     };
 };
