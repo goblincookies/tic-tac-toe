@@ -1,18 +1,45 @@
+// CONSISTENTLY MANAGES THE INDEX OF ARRAYS
 const user = {
     CROSS: 0,
     CIRCLE: 1,
-    BOTH:2
+    BOTH: 2
 };
 
 const artFile = [
     "images/cross.svg",
     "images/circle.svg"
 ];
+
 const hoverFile = [
     "images/cross-hover.svg",
     "images/circle-hover.svg"
 ];
 
+// STORING THE BOARD AS BINARY
+// X | X | -
+// - | - | X
+// - | X | -
+//
+// >>  -- X X 0 0 0 X 0 X 0
+// >>  0b 1 1 0 0 0 1 0 1 0
+let board_X = 0b000000000;
+let board_O = 0b000000000;
+let board_All = [board_X, board_O, (board_X | board_O)];
+const bitLength = 9;
+
+// ALL THE POSSIBLE WIN CONDITIONS
+const winMasks = [
+    0b111000000,
+    0b000111000,
+    0b000000111,
+    0b100100100,
+    0b010010010,
+    0b001001001,
+    0b100010001,
+    0b001010100
+];
+
+// FOR SELECTING EACH CELL
 const ids = [
     0b100000000,
     0b010000000,
@@ -24,33 +51,49 @@ const ids = [
     0b000000010,
     0b000000001
 ];
-const winMasks = [
-    0b111000000,
-    0b000111000,
-    0b000000111,
-    0b100100100,
-    0b010010010,
-    0b001001001,
-    0b100010001,
-    0b001010100
-];
-let board_X = 0b000000000;
-let board_O = 0b000000000;
-let board_All = [board_X, board_O, (board_X | board_O)];
-const bitLength = 9;
+
 const dialog = document.querySelector("#dialog");
 
+// WRITES OUT THE BINARY OF THE DIGIT
+// 0b101 >> xxx101 (xxx ARE THE PADDED 0'S)
+// (0b101 USUALLY WRITES "5")
+function asBinary(val) {
+    return val.toString(2).padStart(bitLength, "0")
+};
+
+// COUNTS THE 1'S IN A BINARY DIGIT
+// 0b000101 >> 2
+// 0b011101 >> 4
+function countOnes( val ) {
+    return asBinary(val).toString().split("1").length - 1;
+};
+
+// UPDATES THE TEXT BLOCK UNDER THE SCORE
+const setStatus = (function() {
+    const divStatus = document.querySelector("#status-text");
+    return (text)=> divStatus.textContent = text;
+})();
+
+// TRIGGERS WHEN THE USER CLICKS ON A CELL
+function selectCell(e) {
+    if(activeUser.getActive() == activeUser.getPlayer()) {
+        let target = e.currentTarget;
+        if( theGameBoard.isValid(target.id) ) {
+            theGameBoard.addToCell(activeUser.getActive(), target.id );
+            boardVisuals.setCell(activeUser.getActive(), target.id);
+            turnManager.endTurn(activeUser.getPlayer());
+        };
+    };
+};
+
+// DATA STRUCTURE FOR THE GAME
 const theGameBoard = ( function() {
-
-    // X | X | -
-    // - | - | X
-    // - | X | -
-
-    // >>  -- X X 0 0 0 X 0 X 0
-    // >>  0b 1 1 0 0 0 1 0 1 0
 
     let winningUser = -1;
     let winningMasks = [];
+
+    // INDEX 0 = CROSS
+    // INDEX 1 = CIRCLE
     let score = [0,0];
 
     const addPoint = function(userID) {
@@ -61,7 +104,7 @@ const theGameBoard = ( function() {
         return score[userID];
     };
 
-    // reset board
+    // USED FOR NEXT GAME
     const resetBoard = function() {
         board_X = 0b000000000;
         board_O = 0b000000000;
@@ -69,20 +112,26 @@ const theGameBoard = ( function() {
         winningUser = -1;
         winningMasks = [];
     };
+
+    // USED WITH RESET BOARD, IT RESETS THE GAME
     const resetScore = function() {
         score = [0,0];
-    }
+    };
 
-    // is valid cell
+    // RETURNS IF A CELL IS UNOCCUPIED BY ANY PIECE
     const isValid  = function (cellID) {
         if (cellID < ids.length) {
-            const idMask = ids[cellID];
-            return ((board_All[user.BOTH] | idMask) != board_All[user.BOTH])
+
+            // BITWISE OR ( | )
+            // CHECKS IF THE BOARD MERGED WITH THE ID IS DIFFERENT
+            return ((board_All[user.BOTH] | ids[cellID]) != board_All[user.BOTH])
         };
         return false;
     };
 
-    // add to cell
+    // ADDS THE CELL ID TO GAME DATA
+    // BITWISE MERGE WITH USERS BOARD
+    // RE-MERGE THE MODIFIED BOARDS
     const addToCell = function ( userID, cellID ) {
         if (cellID < ids.length) {
             board_All[userID] |= ids[cellID];
@@ -90,12 +139,22 @@ const theGameBoard = ( function() {
         };
     };
 
-    // winner check MOVE TO WINNER
-    const hasWinner = function () {
+    // REMOVES THE CELL ID FROM THE DATA
+    // BITWISE XOR (^) EXCLUDES IT FROM USERS BOARD
+    // RE-MERGE THE MODIFIED BOARDS
+    const removeFromCell = function (userID, cellID ) {
+        if (cellID < ids.length) {
+            board_All[userID] ^= ids[cellID];
+            board_All[user.BOTH] = (board_All[user.CROSS] | board_All[user.CIRCLE]);
+        };
+    };
 
+    // RETURNS TRUE IF THERE IS A WINNER
+    // WE COMPARE EACH USERS BOARD AGAINST ALL THE WIN MASKS
+    // WE SAVE RESULTS
+    const hasWinner = function () {
         let winner = false;
         for ( let userID = 0; userID < 2; userID++) {
-            // board X, board O
             for (const win of winMasks){
                 if ((board_All[userID] & win) == win) {
                     winner = true;
@@ -107,26 +166,34 @@ const theGameBoard = ( function() {
         return winner;
     };
 
+    // CHECK IF EVERY SPACE IS OCCUPIED
     const hasDraw = function () {
-        return ((asBinary(board_All[user.BOTH]).toString().split("1").length - 1) >= 9) 
+        return ( countOnes(board_All[user.BOTH]) >= 9) ;
     };
 
+    // RETURNS AN ARRAY OF UNOCCUPIED IDS
     const getValidCells = function() {
         let validCells = [];
-        for(let i=0; i < game.length; i++){
-            if (game[i] <0 ) {validCells.push(i) }
+        let allCells = 0b111111111;
+        let openCells = board_All[user.BOTH] ^ allCells;
+        
+        for(let maskIndex=0; maskIndex < ids.length; maskIndex++){
+            if( (ids[maskIndex] & openCells ) == ids[maskIndex]) {
+                validCells.push(maskIndex);
+            };
         };
         return validCells;
     };
 
-    // winner
     const getWinningUser = () => winningUser;
     const getWinningMasks = () => winningMasks;
 
     return {isValid, addToCell, hasWinner, hasDraw, getWinningUser, getWinningMasks,
-        resetBoard, getValidCells, addPoint, getScore, resetScore };
+        resetBoard, getValidCells, addPoint, getScore, resetScore, removeFromCell };
 })();
 
+// SWITCH USERS, WHILE CHECKING FOR WINS/DRAWS
+// ADDS ARTIFICAL DELAY TO THE COMPUTERS TURN
 const turnManager = ( function () {
 
     const endTurn = function (userID) {
@@ -134,6 +201,7 @@ const turnManager = ( function () {
         if (theGameBoard.hasWinner()) {
             boardVisuals.highlightWinner( theGameBoard.getWinningMasks() );
             theGameBoard.addPoint(userID);
+
             if(userID == activeUser.getPlayer()) {
                 setStatus("You Win!");
             } else {
@@ -141,167 +209,167 @@ const turnManager = ( function () {
             };
 
             boardVisuals.addPoint(userID, theGameBoard.getScore(userID));
-            boardVisuals.nextGame();
-
+            boardVisuals.showNextGame();
             activeUser.switchUser(user.BOTH);
     
         } else if(theGameBoard.hasDraw()) {
             setStatus("Draw!");
             activeUser.switchUser(user.BOTH);
-            boardVisuals.nextGame();
+            boardVisuals.showNextGame();
         }else {
-            console.log("swithcing user", userID, 1-userID);
+            console.log("switching user from:", userID, "to", 1-userID);
             activeUser.switchUser(1-userID);
             
             if(activeUser.getActive() == activeUser.getPlayer()) {
                 setStatus("Your Turn");
             } else {
                 setStatus("Com Turn");
+
+                // FAKE 'COMPUTER THINKING' DELAY
                 setTimeout(function (){
-                // Something you want delayed.
                 compAction();   
               }, 600);
-            };            
+            };
         };
     };
     return {endTurn}
 })();
 
-function asBinary(val) {
-    return val.toString(2).padStart(bitLength, "0")
+// USED BY SEARCH TO CHECK FOR OPEN CELLS THAT WILL END THE GAME
+function checkForBlocksAndWins( bestMove ) {
+
+    for ( let userID = 0; userID < 2; userID++) {
+        for (const win of winMasks){
+            if (countOnes(board_All[userID] & win) > 1) {
+                if ((board_All[user.BOTH] & win) == (board_All[userID] & win)) {
+                    for(let idMask = 0; idMask < ids.length; idMask++){
+                        if (((((board_All[userID] & win)) | ids[idMask]) & win) == win) {
+
+                            if (bestMove[0] < 200 ) {
+                                bestMove = (userID == activeUser.getComp()) ? [200, idMask] : [100, idMask];
+                                console.log("(block/win) This is better, points:", bestMove[0], "cell:", bestMove[1]);
+                            }
+                        };
+                    };
+                };
+            };
+        };
+    };
+    return bestMove;
 };
 
+// SEARCH THROUGH THE BOARD
+// PLAY ANY WINS / BLOCKS
+function search ( ) {
+    // get all moves
+    let moves = theGameBoard.getValidCells();
+    console.log("possible moves", moves);
+
+    if (moves.length < 1) {
+        return -1;
+    };
+    if (moves.length == 9) {
+        return 0;
+    };
+
+    // POINTS, CELL
+    let bestMove = [-999, 0];
+    let thisMovePts = 0;
+
+    bestMove = checkForBlocksAndWins( bestMove );
+
+    // CHECK EACH CELL FOR WINABLE MOVES
+    for (const move of moves) {
+        console.log("trying cell:", move);
+        theGameBoard.addToCell(activeUser.getComp(), move);
+
+        if(bestMove[0] < 50) {
+            let blockCheck = checkForBlocksAndWins( bestMove );
+    
+            if (blockCheck[0] > bestMove[0]) {
+                console.log("this is better, points:", thisMovePts, "cell:", move);
+                bestMove = blockCheck;
+            };
+        };
+
+        // ++5 POINTS FOR EACH WAY THE COMP CAN WIN
+        // --5 POINTS FOR EACH WAY THE OPPONENT CAN WIN
+        let scoreDifference = [0,0];
+        for( let userID = 0; userID < 2; userID ++) {
+            for (const win of winMasks){            
+                if(countOnes(board_All[userID] & win)>0) {
+                    if((board_All[user.BOTH] & win) == (board_All[userID] & win)) {
+                        scoreDifference[userID] += 5;
+                    };
+                };
+            };
+        };
+
+        if (activeUser.getComp() == user.CROSS) {
+            thisMovePts += scoreDifference[0] - scoreDifference[1];
+        } else {
+            thisMovePts += scoreDifference[1] - scoreDifference[0];
+        };
+        
+        if (thisMovePts > bestMove[0]) {
+            console.log("this is better, points:", thisMovePts, "cell:", move);
+            bestMove = [thisMovePts, move];
+        };
+
+        theGameBoard.removeFromCell(activeUser.getComp(), move);
+        thisMovePts = 0;
+    };
+    // RETURNS THE CELL ID FOR THE BEST MOVE
+    return bestMove[1];
+};
+
+// COMPUTER TAKES ACTION
 const compAction = function() {
     
     activeUser.switchUser(activeUser.getComp());
 
-    let potentialPlays = new Array(9);
-    potentialPlays.fill(0);
-    let pts = 0;
-    let filteredPieces;
-    let board_Temp;
-    let noBlockWin = true;
+    let bestMove = search( );
+    console.log( "bestMove!", bestMove );
 
-    // quick win check
-    // block win
-    for ( let userID = 0; userID < 2; userID++) {
-        // board X, board O
-        for (const win of winMasks){
-
-            board_Temp = (board_All[userID] & win);
-            if ((asBinary(board_Temp).toString().split("1").length - 1) > 1) {
-
-                if ((board_All[user.BOTH] & win) == (board_All[userID] & win)) {
-                    if (userID==activeUser.getComp()) {
-                        console.log("found Win!")
-                    } else {
-                        console.log("found block!")
-
-                    }
-                    noBlockWin = false;
-                    for(let idMask = 0; idMask < ids.length; idMask++){
-                        if (((board_Temp | ids[idMask]) & win) == win) {
-                            potentialPlays[idMask] = (userID==activeUser.getComp()) ? potentialPlays[idMask] + 200 : potentialPlays[idMask] + 100;
-                        };
-                    };
-                };
-            };
-        };
-    };
-
-    // general points
-
-    if (noBlockWin) {
-        console.log("no block or win")
-        for ( let userID = 0; userID < 2; userID++) {
-    
-            for (let c = 0; c < 9; c ++) {
-
-                if ((board_All[user.BOTH] | ids[c] ) != board_All[user.BOTH]) {
-                    // empty cell
-                    console.log("space is open: ", c)
-    
-                    board_Temp = (board_All[userID] | ids[c]);
-    
-                    for (const win of winMasks){
-    
-                        if ((ids[c] & win) > 0) {
-    
-                            filteredPieces = board_Temp & win;
-    
-                            if (filteredPieces > 0) {
-    
-                                filteredPieces = asBinary(filteredPieces);         
-                                pts += filteredPieces.toString().split("1").length - 1;
-                            };
-                        };
-                    };
-                    potentialPlays[c] += pts;
-                    pts = 0;
-                };
-            };
-        };
-    };
-
-    let maxVal = 0;
-    let maxCells= [];
-    if( potentialPlays.length <=0 ) {
-        // NO PLAYS
-
+    if (bestMove > -1) {
+        theGameBoard.addToCell(activeUser.getActive(), bestMove );
+        boardVisuals.setCell(activeUser.getActive(), bestMove);
     } else {
-        console.log(potentialPlays);
+        console.log("no idea, all bad! ON NOOOO!")
+    }
 
-        potentialPlays.forEach( el => maxVal = Math.max(maxVal, el) );
-
-        console.log(maxVal);
-
-        for(let p = 0; p < potentialPlays.length;p++) {
-            if (potentialPlays[p] == maxVal) {
-                maxCells.push(p);
-            };
-        };
-
-        let choice = maxCells[ Math.floor(Math.random()*maxCells.length) ];
-        console.log(maxCells, choice);
-        theGameBoard.addToCell(activeUser.getActive(), choice );
-        boardVisuals.setCell(activeUser.getActive(), choice);
-
-        console.log("Comp played, checking winner...")
-
-        turnManager.endTurn(activeUser.getComp());
-    };
-
+    console.log("Comp played, checking winner...")
+    turnManager.endTurn(activeUser.getComp());
 };
 
-const setStatus = (function() {
-    const divStatus = document.querySelector("#status-text");
-    return (text)=> divStatus.textContent = text;
-})();
 
+// UPDATES THE VISUALS ONLY
 const boardVisuals = ( function () {
 
-    const nextGame = function() {
+    const showNextGame = function() {
         document.querySelector("#next-game").classList.remove("hidden");
     };
+
     const hideNextGame = function() {
         document.querySelector("#next-game").classList.add("hidden");
     };
 
     const addPoint = function( player, score ) {
-        console.log("adding points for :", player, score, user.CROSS);
+        // console.log("adding points for :", player, score, user.CROSS);
         if (player == user.CROSS) {
-            console.log("chose cross for points");
             document.querySelector("#score-cross").textContent = score;
         } else {
-            console.log("chose circle for points");
             document.querySelector("#score-circle").textContent = score;
         };
     };
 
+    // BOARD ONLY
+    // CLEARS ALL CELLS
     const resetGame = function () {
-        // const highlight = ["highlight-cross","highlight-circle"];
+
         for (const cell of board.children) {
             if(theGameBoard.isValid( cell.id )) {
+                console.log("is this doing anything!!?")
                 cell.classList.add("cell","shadow", "non");
                 cell.classList.remove("winner");
                 cell.querySelector("img").classList.remove("winner");
@@ -310,14 +378,15 @@ const boardVisuals = ( function () {
         };
     };
 
-    const setCell = function( player, id ) {
-        const cell = document.getElementById(id.toString());
+    // SHOW CROSS/CIRCLE ON CELL
+    const setCell = function( userID, cellID ) {
+        const cell = document.getElementById(cellID.toString());
         cell.classList.remove("shadow", "highlight-cross", "highlight-circle");
         const img = cell.querySelector("img");
 
-        img.src = artFile[player]; // shapeFile.CROSS;
+        img.src = artFile[userID]; // shapeFile.CROSS;
         
-        if (player == user.CROSS) {
+        if (userID == user.CROSS) {
             img.classList.add("cross");
         } else {
             img.classList.add("circle");
@@ -325,6 +394,7 @@ const boardVisuals = ( function () {
         img.classList.remove("hidden");
     };
 
+    // TOGGLE THE HOVER EFFECTS TO EACH USER
     const setHover = function( userID ) {
         const highlight = ["highlight-cross","highlight-circle"];
         for (const cell of board.children) {
@@ -336,32 +406,29 @@ const boardVisuals = ( function () {
         };
     };
 
+    // SHOW WINNING EFFECTS
     const highlightWinner = function( WinningMasks ) {
         let winningCells = [];
-        for (const mask of WinningMasks) {
-            // console.log("winning cells!", asBinary(mask));
-            
-            for(let idMask = 0; idMask < ids.length; idMask++){
 
+        for (const mask of WinningMasks) {
+
+            for(let idMask = 0; idMask < ids.length; idMask++){
                 if ((ids[idMask] | mask) == mask) {
                     winningCells.push( idMask );
                 };
             };
         };
 
-        console.log(winningCells);
-
         for(const cellID of winningCells) {
-            // console.log("")
-            console.log(cellID)
             const cell = document.getElementById(cellID.toString());
             cell.classList.remove("shadow", "highlight-cross");
             cell.classList.add("winner");
         };
     };
-    return {setCell, setHover, highlightWinner, nextGame, addPoint, resetGame, hideNextGame };
+    return {setCell, setHover, highlightWinner, showNextGame, addPoint, resetGame, hideNextGame };
 })();
 
+// MANAGES THE USER
 const activeUser = ( function() {
     const turnCircle = document.querySelector("#turn-circle");
     const turnCross = document.querySelector("#turn-cross");
@@ -391,7 +458,6 @@ const activeUser = ( function() {
     };
 
     const switchUser = function( userID ){
-        // return newUser;
         if (userID == user.CROSS){
             turnCross.classList.add("active");
             turnCircle.classList.remove("active");
@@ -414,7 +480,7 @@ const activeUser = ( function() {
     return {switchUser, getActive, getPlayer, setPlayer, getComp}
 })();
 
-
+// SETUP THE GAME
 function setup() {
     document.querySelector("#start-game").addEventListener("click", startGame);
     document.querySelector("#reset").addEventListener("click", resetGame);
@@ -425,6 +491,7 @@ function setup() {
     dialog.showModal();
 };
 
+// SELECT CROSS/CIRCLE
 function dialogChangeUser( e ) {
     const id_cross = "select-cross";
     const id_circ = "select-circle";
@@ -443,6 +510,7 @@ function dialogChangeUser( e ) {
     };
 };
 
+// START A GAME
 function startGame() {
     setStatus("Let's go!");
 
@@ -483,9 +551,11 @@ function startGame() {
     dialog.close();
 };
 
+
 function resetGame() {
     dialog.showModal();
 };
+
 
 function setupNewGame() {
     activeUser.switchUser(user.CROSS);
@@ -503,17 +573,6 @@ function setupNewGame() {
         setTimeout(function (){
             compAction();   
           }, 600);
-    };
-};
-
-function selectCell(e) {
-    if(activeUser.getActive() == activeUser.getPlayer()) {
-        let target = e.currentTarget;
-        if( theGameBoard.isValid(target.id) ) {
-            theGameBoard.addToCell(activeUser.getActive(), target.id );
-            boardVisuals.setCell(activeUser.getActive(), target.id);
-            turnManager.endTurn(activeUser.getPlayer());
-        };
     };
 };
 
