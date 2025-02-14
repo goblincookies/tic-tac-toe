@@ -482,6 +482,10 @@ const activeUser = ( function() {
 
 // SETUP THE GAME
 function setup() {
+    // ESCAPE CAN BE USED TO CLOSE THE DIALOG WINDOW
+    // THIS TRACKS THE ACTION
+    dialog.addEventListener("keydown", (e) => { if(e.key == "Escape") { startGame() } } );
+
     document.querySelector("#start-game").addEventListener("click", startGame);
     document.querySelector("#reset").addEventListener("click", resetGame);
 
